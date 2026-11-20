@@ -1,0 +1,27 @@
+name: sync pack
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download current pack
+        run: |
+          curl -sfL --retry 3 -o new.zip https://pack.heartsmp.net/pack.zip
+          unzip -tq new.zip
+          sha1sum new.zip | cut -c1-40 > new.sha1
+          if cmp -s new.sha1 pack.sha1; then echo "unchanged"; rm new.zip new.sha1; exit 0; fi
+          mv new.zip pack.zip; mv new.sha1 pack.sha1
+          git config user.name "heartsmp-bot"
+          git config user.email "heartsmp-bot@users.noreply.github.com"
+          git checkout --orphan tmp
+          git add -A
+          git commit -qm "Pack $(cat pack.sha1)"
+          git branch -D main
+          git branch -m main
+          git push -f origin main
